@@ -1,0 +1,41 @@
+
+
+
+export d'un vagrant bboxe : 
+
+1- Va dans le répertoire de la VM : Ouvre un terminal ou un PowerShell et navigue dans le répertoire où se trouve ton fichier Vagrantfile :
+
+   cd /chemin/vers/le/repertoire
+
+2- Créer un fichier .box : Utilise la commande suivante pour transformer la VM actuelle en un fichier .box 
+   
+  vagrant package --output ma_vm.box
+
+--output ma_vm.box : Cette option permet de nommer le fichier généré (par exemple ma_vm.box).
+Cette commande arrête automatiquement la VM (si elle est en cours d'exécution), la compresse, et génère un fichier .box dans le répertoire courant.
+
+Étapes pour utiliser la box sur un autre PC :
+
+- mkdir nouveau_projet 
+
+- cd nouveau_projet
+
+- Copie du fichier .box : Transfère le fichier ma_vm.box sur l’autre ordinateur (par clé USB, réseau, ou autre).
+
+- Ajoute la box à Vagrant sur le nouvel ordinateur : Sur l’autre PC, ouvre un terminal dans un répertoire de ton choix et ajoute la box avec la commande :
+
+3- vagrant box add nom_de_la_box /chemin/vers/ma_vm.box  = vagrant box add ma_vm_debain_asusvivobook ma_vm.box
+
+4- Créer un nouveau projet basé sur cette box : Une fois la box ajoutée, tu peux créer un nouveau répertoire, initialiser Vagrant, et utiliser ta box :
+
+ - vagrant init ma_vm_debain_asusvivobook
+
+- ajouter l'ip statique : config.vm.network "private_network" , ip: "192.168.0.40"
+  # Pour Drupal : configurer le port forwarding pour le port 8080 donc ici le guest . Le guest correspond au port à l'intérieur de la VM (ici 8080), et le host correspond au port sur ta machine locale (également 8080 dans ce cas).une fois ajouté faire : vagrant halt ; vagrant up
+- config.vm.network "forwarded_port", guest: 8080, host: 8080 - vagrant up --provider=virtualbox
+
+
+- s'il faut ajouter un truc dans la vm il faut faire vagrant halte ; modifier le fichier vagantfimle ajouter ce qu'on veut et faire vagrant up 
+    - vagrant halte 
+    - faire modif du fichier vagrantfile
+    - vagrant up 
