@@ -1,0 +1,6 @@
+---
+- name: Configuration de la VM Ubuntu
+  hosts: ubuntu
+  become: yes
+  roles:
+    - configure_ubuntu

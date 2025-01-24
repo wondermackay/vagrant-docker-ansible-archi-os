@@ -1,0 +1,4 @@
+---
+default_user: nouvelutilisateur2
+default_password: MotDePasseSecret2
+default_shell: /bin/bash

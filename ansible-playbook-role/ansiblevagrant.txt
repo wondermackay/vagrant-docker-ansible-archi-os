@@ -1,0 +1,340 @@
+
+ANSIBLE VAGRANT 
+
+- par defaut quand ansible execute un playbook il cherhce dans ce  fichier d'inventaire  /etc/ansible les hosts : 
+
+sudo touch /etc/ansible/hosts
+[example]
+www.example.com
+
+[all]
+127.0.0.1 ansible_connection=local
+[all]
+127.0.0.1 ansible_connection=local
+192.168.56.20 ansible_user=ubuntu
+
+-- a remetrre
+[all]
+127.0.0.1 ansible_connection=local
+[ubuntu]
+192.168.56.20 ansible_ssh_user=vagrant ansible_ssh_private_key_file=/home/vagrant/.ssh/ubuntu_private_key
+
+
+- mais si l'on veut on peut créer un fichier inventaire directement dans le dossier courant et exécuter avec la commande :
+ Contenu du fichier inventory :
+[all]
+127.0.0.1 ansible_connection=local
+ansible-playbook -i inventory playbook.yml
+
+test de la connectivité : ssh -i C:/Users/kouwo/vmvagrantlivre/.vagrant/machines/ubuntu/virtualbox/private_key vagrant@192.168.56.20
+- copier  la clé de la ubuntu private_key dans la partie ou e trouve le vagrantfile 
+- ensuite le depalkcer dans le dossier ssh de la Debian : mv private_key ~/.ssh/ubuntu_private_key
+- verifier : ls -l ~/.ssh/ ou  ls -l ~/.ssh/ubuntu_private_key
+- accorder les droits : chmod 600 ~/.ssh/ubuntu_private_key
+- Sur votre VM Ubuntu, vous pouvez vérifier si SSH est installé avec : sudo systemctl status ssh
+- allez au fichier d'inventaire par défaut : sudo nano /etc/ansible/hosts
+- verifier : [ubuntu]
+192.168.56.20 ansible_ssh_user=vagrant ansible_ssh_private_key_file=/home/vagrant/.ssh/ubuntu_private_key
+
+vagrant@bullseye:/vagrant$ ansible   all -m ping
+127.0.0.1 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+192.168.56.20 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+vagrant@bullseye:/vagrant$
+
+----------------- vagrantfile --------------------------
+Vagrant.configure("2") do |config|
+  # Définir la VM Debian avec une IP statique
+  config.vm.define "debian" do |debian|
+    debian.vm.box = "debian/bullseye64"  # Utiliser une box Debian
+    debian.vm.network "private_network", ip: "192.168.56.10"  # IP statique pour Debian
+
+    # Provisionner la machine Debian pour installer Ansible (optionnel)
+    debian.vm.provision "shell", inline: <<-SHELL
+      sudo apt update
+      sudo apt install -y ansible
+    SHELL
+  end
+
+  # Définir la VM Ubuntu avec une IP statique
+  config.vm.define "ubuntu" do |ubuntu|
+    ubuntu.vm.box = "ubuntu/bionic64"  # Utiliser une box Ubuntu
+    ubuntu.vm.network "private_network", ip: "192.168.56.20"  # IP statique pour Ubuntu
+  end
+end
+
+
+----------- playbook.yml ------------------------
+--- 
+- hosts : all
+  become : yes
+  tasks :
+  - name : Ensure NTP (for time synchronization) is install
+    yum : name=ntp state=present
+  - name : Ensure NTP is running 
+    service : name=ntpd state=started enable=yes  
+
+vagrant ssh 
+cd /home/vagrant
+ls
+ansible-playbook playbook.yml
+
+--------playbook_docker.yml--------------------
+---
+- hosts: all
+  become: yes
+  tasks: 
+    - name : "Install dependencies for docker"
+      apt: 
+       name: 
+         -  apt-transport-https
+         - ca-certificates
+         - curl
+         - software-properties-common
+       state : present
+    - name : "Add docker repository"
+      apt_key:
+          url: https://download.docker.com/linux/ubuntu/gpg
+          state: present
+    - name: Add Docker APT repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release | lower }} stable"
+        state: present
+    - name: "Install Docker"
+      apt:
+        name: docker-ce
+        state: present
+
+    - name: "Ensure Docker is running"
+      service:
+          name: docker
+          state: started
+          enabled: yes
+
+
+
+ansible-playbook playbook.yml --limit webservers
+ansible-playbook playbook.yml --list-hosts
+
+exprece
+
+# Vagrantfile pour créer une VM Linux avec Vagrant
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/focal64" # Utilise Ubuntu 20.04 comme base
+
+  config.vm.provision "shell", inline: <<-SHELL
+    # Mettez à jour le système
+    apt-get update && apt-get upgrade -y
+
+    # Installez les dépendances pour compiler Quark
+    apt-get install -y git build-essential make
+
+    # Clonez le dépôt Quark
+    git clone https://git.suckless.org/quark /home/vagrant/quark
+
+    # Compilez Quark
+    cd /home/vagrant/quark
+    make
+
+    # Installez Docker
+    apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable"
+    apt-get update && apt-get install -y docker-ce
+  SHELL
+end
+
+# Dockerfile pour créer l'image Docker
+FROM ubuntu:20.04
+
+# Variables d'environnement pour un fonctionnement non interactif
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Copiez le binaire compilé et configurez le serveur
+COPY quark /usr/local/bin/quark
+
+# Ajoutez le répertoire root pour les fichiers statiques
+RUN mkdir -p /var/www/html
+COPY index.html /var/www/html/index.html
+
+# Définir le répertoire de travail et l’exécutable par défaut
+WORKDIR /var/www/html
+
+# Paramètres du serveur configurables via ENTRYPOINT
+ENTRYPOINT ["/usr/local/bin/quark", "-p", "8080", "-h", "0.0.0.0"]
+# Options par défaut
+CMD [ "-d", "/var/www/html"]
+
+
+le fichier index.html 
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quark Server</title>
+</head>
+<body>
+    <h1>Bienvenue sur Quark</h1>
+    <p>Ce serveur est alimenté par Quark via Docker.</p>
+</body>
+</html>
+- donc en premiere etape generer l'exe ensuite creer le dockerfile et le fichier index.html 
+on aura : 
+Dockerfile
+quark (l'exécutable)
+index.html
+
+ sudo docker container run -d -p 8080:8080 quark-server
+
+Docker : 
+COPY : COPY  index.html /var/www/html/index.html : copie le fichier index.html à l'intérieur du conteneur, dans le répertoire /var/www/html
+WORKDIR : WORKDIR /var/www/html : définit le répertoire de travail dans lequel le conteneur sera exécuté.
+ENTRYPOINT définit le programme à exécuter (/usr/local/bin/quark).
+
+PARTIE II : faire un ververse proxy avec docker compose 
+Un reverse proxy est un serveur qui se place entre les utilisateurs finaux et les serveurs qui hébergent réellement les applications.Il agit comme un intermédiaire pour gérer les requêtes et les rediriger vers le serveur approprié. En d'autres termes, le reverse proxy reçoit les requêtes des clients (comme celles d'un navigateur) et les transmet à un ou plusieurs serveurs internes.
+
+Fonctionnement du Reverse Proxy :
+Requêtes entrantes : Un utilisateur envoie une requête (par exemple, un navigateur demande une page web).
+Le Reverse Proxy : Le reverse proxy reçoit cette requête et décide de la manière dont elle doit être traitée. Il peut rediriger la requête vers plusieurs serveurs backend (internes) en fonction de critères comme l'URL, le type de contenu, ou d'autres facteurs.
+Serveurs Backend : Le reverse proxy envoie la requête au serveur approprié qui traite la demande (par exemple, un serveur web ou une API).
+Réponse : Une fois que le serveur backend a répondu, le reverse proxy envoie la réponse à l'utilisateur.
+
+Avantages d'un Reverse Proxy :
+Sécurité : Il cache l'adresse et les détails du serveur interne, ce qui rend plus difficile l'attaque du serveur réel.
+
+Exemple de Reverse Proxy :
+Quelques logiciels couramment utilisés comme reverse proxy sont :
+
+Nginx : Très populaire et léger, capable de servir à la fois de serveur web et de reverse proxy.
+Traefik : Un reverse proxy moderne et dynamique, souvent utilisé avec Docker.
+Apache HTTP Server : Peut aussi être configuré comme reverse proxy.
+
+
+----- 
+- creer un fichier nginx.conf dans le mm dossier 
+# /etc/nginx/nginx.conf
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    server {
+        listen 80;
+
+        location / {
+            proxy_pass http://quark-server:8080;  # Assurez-vous que "quark-server" correspond au nom de service du conteneur quark
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+}
+- creer un docker-compose file 
+version: "3"
+
+services:
+  quark-server:
+    image: quark-server
+    ports:
+      - "8080:80"
+
+  reverse-proxy:
+    image: nginx:latest
+    ports:
+      - "8081:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf  # Assurez-vous que ce chemin est correct et que le fichier est bien monté
+    depends_on:
+      - quark-server
+
+
+ Schéma illustratif
+Le client envoie une requête à : http://192.168.56.10:8081 (donc a nginx car c'est lui qui est exposé au 8081 sur l'hote )
+
+NGINX reçoit cette requête sur son port 80 à l'intérieur de son conteneur (mappé à 8081 sur l'hôte).
+
+NGINX redirige cette requête à l'adresse interne http://quark-server:8080, où Quark traite et renvoie une réponse.
+
+NGINX transmet la réponse au client.
+donc en gros nginx joue l'intermediaire entre l'utilisateur et le serveur backend quark
+
+II partie ansible 
+-creation d'edgar : creerun fichier create_edgar.yml 
+
+---
+- name: Créer l'utilisateur Edgar et configurer sudo sans mot de passe
+  hosts: all
+  become: yes  # On a besoin des privilèges sudo pour cette tâche
+  tasks:
+    - name: Créer l'utilisateur Edgar
+      user:
+        name: edgar
+        state: present
+        shell: /bin/bash
+
+    - name: Ajouter l'utilisateur Edgar au groupe sudo
+      user:
+        name: edgar
+        groups: sudo
+        append: yes
+
+    - name: Autoriser edgar à utiliser sudo sans mot de passe
+      lineinfile:
+        path: /etc/sudoers
+        regexp: '^%sudo'
+        line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+
+- et pour voir ca sur la nouvelle donc la Debian : id edgar
+- verifier si edgar peut utiliser sudo sans password : 
+sudo su - edgar : alors il demandera pas de password
+sudo ls /root : cette commande marche alors edgar a le privilege de l'excuter 
+
+---------------------- new ------------------------------
+ansible-playbook -i ansible/hosts setup.yml : si le host est dans le dossier ansible.hosts ou 
+ansible-playbook setup.yml si tout est dasn le dossier par défaut etc/ansible/hosts
+contenu du fichier setup.yml : 
+---
+- name: Configuration de la VM Ubuntu
+  hosts: ubuntu
+  become: yes  # Exécution des tâches avec sudo
+  tasks:
+    - name: Installer le paquet vim
+      apt:
+        name: vim
+        state: present
+        update_cache: yes
+
+    - name: Créer un utilisateur
+      user:
+        name: nouvelutilisateur
+        state: present
+        shell: /bin/bash
+        groups: sudo
+        password: "{{ 'MotDePasseSecret' | password_hash('sha512') }}"
+
+---- fin 
+- vérifier sur ubuntu avec : getent passwd nouvelutilisateur
+nouvelutilisateur:x:1001:1001::/home/nouvelutilisateur:/bin/bash
+sudo su - nouvelutilisateur
+----- pour que le noeud managé donc ubuntu puisse etre accéder enssh : 
+---- utiliser un role poiur installer un treuc 
+- ansible-galaxy init configure_ubuntu
+
+
+
+

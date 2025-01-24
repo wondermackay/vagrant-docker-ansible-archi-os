@@ -1,0 +1,26 @@
+Vagrant.configure("2") do |config|
+
+  # definition de la boxe
+  config.vm.box = "debian/bullseye64"
+
+  # definition du réseau 
+  config.vm.network "private_network" , ip: "192.168.0.40"
+
+  # Pour Drupal : configurer le port forwarding pour le port 8080 donc ici le guest . Le guest correspond au port à l'intérieur de la VM (ici 8080),
+  # et le host correspond au port sur ta machine locale (également 8080 dans ce cas).
+  # une fois ajouté faire : vagrant halt ; vagrant up
+  config.vm.network "forwarded_port", guest: 8080, host: 8080
+
+ 
+  # synchroniser un dossier local avec la vm (optionnel)
+  config.vm.synced_folder "." , "/vagrant" , type: "virtualbox"
+
+  # provisionnement avec le script bootstrap.sh
+  config.vm.provision "shell", path: "bootstrap.sh"
+
+  # configuration des ressources (optionnel)
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "1024" # RAM en Mo
+    vb.cpus = 2        # Nombre de CPU
+  end
+end

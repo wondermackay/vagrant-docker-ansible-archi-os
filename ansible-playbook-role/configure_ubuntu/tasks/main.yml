@@ -1,0 +1,17 @@
+---
+- name: Update package cache
+  apt:
+    update_cache: yes
+
+- name: Install vim
+  apt:
+    name: vim
+    state: present
+- name: Create a user with sudo privileges
+  user:
+    name: "{{ default_user }}"
+    state: present
+    shell: "{{ default_shell }}"
+    groups: sudo
+    password: "{{ default_password | password_hash('sha512') }}"
+
